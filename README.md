@@ -1,8 +1,5 @@
 # PiCam
 
-# pvCam
-
-
 PICam camera control is an user interface to control Princeton  scientifics camera 
 
 This software is not associated with TELEDYNE . Use it at your own risk.
