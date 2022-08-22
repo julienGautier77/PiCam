@@ -7,6 +7,12 @@ This software is not associated with TELEDYNE . Use it at your own risk.
 it use 
 PICam™ 5.x SDK from teledyne
 
+the path of dll librairy is :
+libPath: str='C:/Program Files/Princeton Instruments/PICam/Runtime/picam.dll
+
+If you install Picam sdk somewhere else please change the path in picam.py line 337
+
+
 It can make plot profile and data measurements analysis by using :
 https://github.com/julienGautier77/visu
 ## It is tested :
