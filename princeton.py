@@ -39,7 +39,7 @@ from visu import SEE
 class ROPPER(QWidget):
     signalData=QtCore.pyqtSignal(object)
     
-    def __init__(self,Nbcam=None,confFile='confCamera.ini',**kwds):
+    def __init__(self,Nbcam=None,confFile='confCCD.ini',**kwds):
         self.isConnected=False
         super(ROPPER, self).__init__()
         p = pathlib.Path(__file__)
@@ -765,6 +765,6 @@ if __name__ == "__main__":
     appli = QApplication(sys.argv)
     confpathVisu='C:/Users/GAUTIER/Desktop/python/princeton/confCCD.ini'
     appli.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    e = ROPPER(cam='cam0',confpath=confpathVisu)  
+    e = ROPPER(cam='camDefault')#,confpath=confpathVisu)  
     e.show()
     appli.exec_()       
