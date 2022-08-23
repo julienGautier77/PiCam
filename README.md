@@ -5,9 +5,9 @@ PICam camera control is an user interface to control Princeton  scientifics came
 This software is not associated with TELEDYNE . Use it at your own risk.
 
 it use 
-PICam™ 5.x SDK from teledyne
+PICam™ 5.x SDK from Teledyne
 
-the path of dll librairy is :
+The path of dll librairy is :
 libPath: str='C:/Program Files/Princeton Instruments/PICam/Runtime/picam.dll
 
 If you install Picam sdk somewhere else please change the path in picam.py line 337
@@ -27,10 +27,7 @@ on a PIXI 1024
 *   visu 2022.04
 
 ## Installation
-install PICam install for teledyne
-
-
-
+install PICam install for Teledyne
 install visu :
 pip install qdarkstyle (https://github.com/ColinDuquesnoy/QDarkStyleSheet.git)
 pip install pyqtgraph (https://github.com/pyqtgraph/pyqtgraph.git)
