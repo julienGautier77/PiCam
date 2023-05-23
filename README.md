@@ -18,7 +18,7 @@ https://github.com/julienGautier77/visu
 ## It is tested :
 on win 11 64 bits (AMD64) 
 with python 3.9.7 MSC v.1916 with anaconda installation
-on a PIXI 1024 
+on a PIXIS 1024 
 
 ## Requirements
 *   python 3.x
