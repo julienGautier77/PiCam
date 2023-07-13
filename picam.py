@@ -1,5 +1,10 @@
-#author: sabbi
+# -*- coding: utf-8 -*-
+'''
+#inspered by author: sabbi
+
 #11/10/2021
+'''
+
 
 import ctypes
 import numpy as np
@@ -241,16 +246,6 @@ def WindowSize(numRows,numCols):
 	winHeight = int(numRows/aspect)
 	return winWidth, winHeight
 
-def SetupDisplay(numRows,numCols,windowName):        
-	if numRows > 1:
-		cv2.namedWindow(windowName,cv2.WINDOW_NORMAL)
-		winWidth, winHeight = WindowSize(numRows, numCols)
-		cv2.resizeWindow(windowName,winWidth,winHeight)
-
-def DisplayImage(imData, windowName):		#data needs to be passed in correct shape
-	normData = cv2.normalize(imData,None,alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX)
-	cv2.imshow(windowName, normData)
-	cv2.waitKey(50)	#cap opencv refresh at 20fps for stability. May be able to keep up faster on higher powered machines. Increase if stability issues.
 
 class camIDStruct(ctypes.Structure):
 	_fields_=[
@@ -334,7 +329,7 @@ class PicamRois(ctypes.Structure):
                 ("roi_count", ctypes.c_int)]
                     
 class Camera():
-    def __init__(self,*,libPath: str='C:/Program Files/Princeton Instruments/PICam/Runtime/picam.dll'):	#class will instantiate and initialize PICam
+    def __init__(self,*,libPath: str='C:/Users/UPX/Desktop/python/PICam/Picam.dll'):#C:/Program Files/Princeton Instruments/PICam/Runtime/Picam.dll'):	#class will instantiate and initialize PICam
         self.cam = ctypes.c_void_p(0)
         self.dev = ctypes.c_void_p(0)
         self.camID = camIDStruct(0,0,b'',b'')
@@ -342,7 +337,13 @@ class Camera():
         self.numRows = ctypes.c_int(0)
         self.numCols = ctypes.c_int(0)
         self.readRate = ctypes.c_double(0)
-        self.picamLib =  ctypes.WinDLL(libPath)#ctypes.cdll.LoadLibrary(libPath)
+        # os.add_dll_directory(r"C:/Users/UPX/Desktop/python/PICam/dll/Runtime/")
+        
+        pathToLib = os.path.join(os.environ["PicamRoot"], "Runtime")
+        pathToLib = os.path.join(pathToLib, "Picam.dll")
+        # pathToLib =r'C:/Users/UPX/Desktop/python/PICam/dll/Runtime/Picam.dll'
+        #print( 'dll file: ',pathToLib)
+        self.picamLib = ctypes.CDLL(pathToLib, winmode=0)#cdll.LoadLibrary(pathToLib) # add winmode see :https://syntaxbug.com/ea75a69575/
         self.counter = 0
         self.totalData = np.array([])
         self.newestFrame = np.array([])
@@ -380,7 +381,7 @@ class Camera():
             distribution = ctypes.c_int(0)
             released = ctypes.c_int(0)
             self.picamLib.Picam_GetVersion(ctypes.byref(major),ctypes.byref(minor),ctypes.byref(distribution),ctypes.byref(released))
-            print("\tVersion %d.%d.%d.%d"%(major.value, minor.value, distribution.value, released.value))
+            print("\tVersion Picam dll  %d.%d.%d.%d"%(major.value, minor.value, distribution.value, released.value))
 
     def Uninitialize(self):
         self.picamLib.Picam_UninitializeLibrary()
@@ -408,71 +409,82 @@ class Camera():
         else:
             self.GetReadRate()
             if printMessage:
-                print('\tCommit successful! Current readout rate: %0.2f readouts/sec'%(self.readRate.value))
+                pass
+                #print('\tCommit successful! Current readout rate: %0.2f readouts/sec'%(self.readRate.value))
             return True
 
     def OpenFirstCamera(self):#,*,model: int=57): #if a connected camera is found, opens the first one, otherwise opens a demo		
         
         if self.picamLib.Picam_OpenFirstCamera(ctypes.byref(self.cam)) > 0:
-            print('l&')#try opening live cam
             self.picamLib.Picam_ConnectDemoCamera(57,b'SLTest',ctypes.byref(self.camID))
             if self.picamLib.Picam_OpenCamera(ctypes.byref(self.camID),ctypes.byref(self.cam)) > 0:
                 print('No camera could be opened. Uninitializing.')
                 self.Uninitialize()
+                self.oneCameraConnected=False
+                return self.oneCameraConnected
             else:
                 self.picamLib.Picam_GetCameraID(self.cam,ctypes.byref(self.camID))
         else:
             self.picamLib.Picam_GetCameraID(self.cam,ctypes.byref(self.camID))
-            print('Camera Sensor: %s, Serial #: %s'%(self.camID.sensor_name.decode('utf-8'),self.camID.serial_number.decode('utf-8')))
+            print('Open First camera avaible : Camera Sensor: %s, Serial #: %s'%(self.camID.sensor_name.decode('utf-8'),self.camID.serial_number.decode('utf-8')))
         self.GetFirstROI()
-        print('\tFirst ROI: %d (cols) x %d (rows)'%(self.numCols,self.numRows))
+        #print('\tFirst ROI: %d (cols) x %d (rows)'%(self.numCols,self.numRows))
     
         
-    
-    def OpenCamera(self,camID=0):
-        pass
-        # # self.picamLib.Picam_OpenFirstCamera(ctypes.byref(self.cam))
-        # # self.picamLib.Picam_OpenCamera(ctypes.byref(self.camID),ctypes.byref(self.cam))
-        # self.getAvailableCameras()
-        # self.cam = ctypes.c_void_p()
-        # self.camID=camIDStruct(0,0,b'',b'')
-        # self.picamLib.Picam_OpenCamera(ctypes.byref(self.camID), ctypes.byref(self.cam))
+   
+         
+    def OpenCamerabySerial(self,serial=0):
+
+        if serial==0 or serial==None:
+             
+             self.OpenFirstCamera()
+        else :
+            self.camIDs = ctypes.pointer(PicamCameraID())
+            id_count = ctypes.c_int()
+            self.picamLib.Picam_GetAvailableCameraIDs(ctypes.byref(self.camIDs),ctypes.pointer(id_count))
+            serialNumber=[]
+            sensorName=[]
+            modele=[]
+            for i in range(id_count.value): # à supprimer si la camera est une MTE
+                modele.append(self.camIDs[i].model) # picam.h for model 
+                sensorName.append(self.camIDs[i].sensor_name.decode('utf-8'))
+                serialNumber.append(self.camIDs[i].serial_number.decode('utf-8'))
+                if serial==self.camIDs[i].serial_number.decode('utf-8'):
+                    self.camID=self.camIDs[i]
+                    if self.picamLib.Picam_OpenCamera(ctypes.byref(self.camID),ctypes.byref(self.cam)) > 0:
+                        print('No camera could be opened.')
+                    else :
+                        print('camera s/n:',self.camIDs[i].serial_number.decode('utf-8'),'sensor :', self.camIDs[i].sensor_name.decode('utf-8'),'connected ')                    
+                        self.oneCameraConnected=True
+                        self.GetFirstROI()
+                    
+            print(id_count.value,' camera (s)  available:',sensorName,serialNumber)
+            if self.oneCameraConnected==False:
+               self.oneCameraConnected=self.OpenFirstCamera()
+            return self.oneCameraConnected
+            
         
-       
-        # self.picamLib.Picam_GetCameraID(self.cam,ctypes.byref(self.camID))
-        # print('Camera Sensor: %s, Serial #: %s'%(self.camID.sensor_name.decode('utf-8'),self.camID.serial_number.decode('utf-8')))
-        # self.GetFirstROI()
-        # print('\tFirst ROI: %d (cols) x %d (rows)'%(self.numCols,self.numRows))
-        
-        
+    def getSerialNumber(self):
+         return self.camID.serial_number.decode('utf-8')    
         
     def getAvailableCameras(self):
         if self.camIDs is not None and not isinstance(self.camIDs, list):
             self.picamLib.Picam_DestroyCameraIDs(self.camIDs)
             self.camIDs = None
-
         # get connected cameras
         self.camIDs = ctypes.pointer(PicamCameraID())
-        
         id_count = ctypes.c_int()
         self.picamLib.Picam_GetAvailableCameraIDs(ctypes.byref(self.camIDs),ctypes.pointer(id_count))
-        print(id_count.value,self.camIDs)
+        #print(id_count.value,self.camIDs)
         serialNumber=[]
         sensorName=[]
         modele=[]
         for i in range(id_count.value): # à supprimer si la camera est une MTE
 #                print('  Model is ', pit.PicamModelLookup[self.camIDs[i].model])
-                
                 modele.append(self.camIDs[i].model) # picam.h for model 
-                
                 sensorName.append(self.camIDs[i].sensor_name.decode('utf-8'))
-                
                 serialNumber.append(self.camIDs[i].serial_number.decode('utf-8'))
-                
-        
         return(modele,sensorName,serialNumber)
-        
-        
         
     def SetExposure(self, value):
         self.setParameter("PicamParameter_ExposureTime",value)
