@@ -29,7 +29,7 @@ Picam dll :  5.13.3.2211
 *   python >3.8
 *   PyQt6
 *   visu 2023.07
-*   picam installer 5.
+*   picam installer 5.X
 
 ## Installation
 install PICam skd install for Teledyne (see https://github.com/sliakat/SpeReadPy)
