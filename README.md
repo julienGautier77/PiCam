@@ -16,10 +16,14 @@ If you install Picam sdk somewhere else please change the path in picam.py line 
 It can make plot profile and data measurements analysis by using :
 https://github.com/julienGautier77/visu
 ## It is tested :
-on win 10 64 bits (AMD64) 
+on win 10 64 bits (AMD64)
+
 with python 3.10.12 based on conda
+
 On a PIXIS 1024 
+
 Picam dll :  5.13.3.2211
+
 
 ## Requirements
 *   python >3.8
