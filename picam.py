@@ -337,13 +337,10 @@ class Camera():
         self.numRows = ctypes.c_int(0)
         self.numCols = ctypes.c_int(0)
         self.readRate = ctypes.c_double(0)
-        # os.add_dll_directory(r"C:/Users/UPX/Desktop/python/PICam/dll/Runtime/")
-        
         pathToLib = os.path.join(os.environ["PicamRoot"], "Runtime")
         pathToLib = os.path.join(pathToLib, "Picam.dll")
-        # pathToLib =r'C:/Users/UPX/Desktop/python/PICam/dll/Runtime/Picam.dll'
         #print( 'dll file: ',pathToLib)
-        self.picamLib = ctypes.CDLL(pathToLib, winmode=0)#cdll.LoadLibrary(pathToLib) # add winmode see :https://syntaxbug.com/ea75a69575/
+        self.picamLib = ctypes.CDLL(pathToLib, winmode=0)   #cdll.LoadLibrary(pathToLib) # add winmode see :https://syntaxbug.com/ea75a69575/
         self.counter = 0
         self.totalData = np.array([])
         self.newestFrame = np.array([])
@@ -373,7 +370,7 @@ class Camera():
         initCheck = ctypes.c_bool(0)
         self.picamLib.Picam_InitializeLibrary()
         self.picamLib.Picam_IsLibraryInitialized(ctypes.byref(initCheck))
-        print('PICam Initialized: %r'%initCheck.value)
+        
         if initCheck:
 			#version check if PICam successfully initialized
             major = ctypes.c_int(0)
@@ -381,6 +378,7 @@ class Camera():
             distribution = ctypes.c_int(0)
             released = ctypes.c_int(0)
             self.picamLib.Picam_GetVersion(ctypes.byref(major),ctypes.byref(minor),ctypes.byref(distribution),ctypes.byref(released))
+            print('PICam Initialized: %r'%initCheck.value)
             print("\tVersion Picam dll  %d.%d.%d.%d"%(major.value, minor.value, distribution.value, released.value))
 
     def Uninitialize(self):
@@ -445,7 +443,7 @@ class Camera():
             serialNumber=[]
             sensorName=[]
             modele=[]
-            for i in range(id_count.value): # à supprimer si la camera est une MTE
+            for i in range(id_count.value): # à supprimer si la camera est une MTE ?
                 modele.append(self.camIDs[i].model) # picam.h for model 
                 sensorName.append(self.camIDs[i].sensor_name.decode('utf-8'))
                 serialNumber.append(self.camIDs[i].serial_number.decode('utf-8'))
