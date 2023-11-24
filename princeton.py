@@ -11,7 +11,7 @@ modified 2021/06/16 : add opining by serial number
 modified 2023/07/07 : PyQt6
 """
 
-__version__='2023.7'
+__version__='2023.11'
 __author__='julien Gautier'
 version=__version__
 
@@ -221,10 +221,11 @@ class ROPPER(QWidget):
         
         self.hSliderShutter=QSlider(Qt.Orientation.Horizontal)
         self.hSliderShutter.setMaximumWidth(60)
+        self.hSliderShutter.setMaximum(5000)
         self.shutterBox=QSpinBox()
         self.shutterBox.setStyleSheet('font :bold  8pt')
         self.shutterBox.setMaximumWidth(120)
-        
+        self.shutterBox.setMaximum(5000)
         hboxShutter=QHBoxLayout()
         hboxShutter.setContentsMargins(0, 0, 0, 5)
         hboxShutter.setSpacing(10)
@@ -323,7 +324,7 @@ class ROPPER(QWidget):
         self.setContentsMargins(0, 0, 0, 0)
 
         if self.isConnected==True: 
-            
+            print('la')
             self.settingWidget=SETTINGWIDGET(cam=self.cam,visualisation=self.visualisation)
 
             self.sh=int(self.conf.value(self.nbcam+"/shutter")   ) # set exp time in shutter box 
@@ -358,8 +359,8 @@ class ROPPER(QWidget):
             self.threadRunAcq.newDataRun.connect(self.Display)    
             self.threadOneAcq.newDataRun.connect(self.Display)  
             
-        
         self.setWindowTitle(self.cameraType+"   " + self.ccdName+ ' :   s/n:  '+str(self.serial)+'     v.'+ self.version+"   " +'Visu v.'+self.visualisation.version)
+    
     def shutter (self):
         '''set exposure time 
         '''
@@ -469,25 +470,29 @@ class ROPPER(QWidget):
     # PicamTriggerResponse_ExposeDuringTriggerPulse = 4
    
     # PicamTriggerSource_None     = 3, Pas DISPO pour PIXIS Et MTE
-   #  PicamTriggerSource_Internal = 2,
-   #  PicamTriggerSource_External = 1
+   #  PicamTriggerSource_Internal = 2,Pas DISPO pour PIXIS Et MTE
+   #  PicamTriggerSource_External = 1Pas DISPO pour PIXIS Et MTE
    
    # PicamTriggerTermination_FiftyOhms     = 1,
    #  PicamTriggerTermination_HighImpedance = 2
         itrig=self.trigg.currentIndex()
         if itrig==0:
+            self.cam.setParameter("PicamParameter_TriggerDetermination", int(1))
             self.cam.setParameter("PicamParameter_TriggerResponse", int(1))
-            self.cam.setParameter("PicamParameter_TriggerDetermination", int(2))
-            # self.cam.setParameter("PicamParameter_TriggerSource",int(3)) # pas dispo 
-            # self.cam.sendConfiguration()
+            
+           
             print ('trigger OFF')
         if itrig==1:
-            # self.cam.setParameter("PicamParameter_TriggerSource",int(1))
             self.cam.setParameter("PicamParameter_TriggerResponse", int(2))
-            self.cam.setParameter("PicamParameter_TriggerDetermination", int(2)) 
-            # self.cam.sendConfiguration()
+            time.sleep(1)
+            self.cam.setParameter("PicamParameter_TriggerDetermination", int(1))
+            
+            
             print ('Trigger ON ')
-        print('trigger S R T',self.cam.getParameter("PicamParameter_TriggerResponse"))
+
+        print('trigger Reponse',self.cam.getParameter("PicamParameter_TriggerResponse"))
+        print('TriggerDetermination',self.cam.getParameter("PicamParameter_TriggerDetermination"))
+        
     
     def Display(self,data):
         '''Display data with Visu module

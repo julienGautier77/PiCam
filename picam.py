@@ -486,7 +486,8 @@ class Camera():
         
     def SetExposure(self, value):
         self.setParameter("PicamParameter_ExposureTime",value)
-        print("exposure set to :",self.GetExposure())
+        print("exposure set to :")#,self.GetExposure())
+
     def GetExposure(self):
         exp=self.getParameter("PicamParameter_ExposureTime")
         # print("Exposure  is :",exp)
@@ -605,7 +606,7 @@ class Camera():
 
         return None 
     
-    def Acquisition(self, N=1, timeout=10000):
+    def Acquisition(self, N=1, timeout=100000):
         
         # print('Acquire')
         self.available = PicamAvailableData()
