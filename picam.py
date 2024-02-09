@@ -443,6 +443,7 @@ class Camera():
             serialNumber=[]
             sensorName=[]
             modele=[]
+            self.oneCameraConnected=False
             for i in range(id_count.value): # à supprimer si la camera est une MTE ?
                 modele.append(self.camIDs[i].model) # picam.h for model 
                 sensorName.append(self.camIDs[i].sensor_name.decode('utf-8'))
@@ -451,6 +452,7 @@ class Camera():
                     self.camID=self.camIDs[i]
                     if self.picamLib.Picam_OpenCamera(ctypes.byref(self.camID),ctypes.byref(self.cam)) > 0:
                         print('No camera could be opened.')
+                        self.oneCameraConnected=False
                     else :
                         print('camera s/n:',self.camIDs[i].serial_number.decode('utf-8'),'sensor :', self.camIDs[i].sensor_name.decode('utf-8'),'connected ')                    
                         self.oneCameraConnected=True
@@ -486,8 +488,7 @@ class Camera():
         
     def SetExposure(self, value):
         self.setParameter("PicamParameter_ExposureTime",value)
-        print("exposure set to :")#,self.GetExposure())
-
+        print("exposure set to :",self.GetExposure())
     def GetExposure(self):
         exp=self.getParameter("PicamParameter_ExposureTime")
         # print("Exposure  is :",exp)
@@ -655,7 +656,6 @@ class Camera():
 
         # create a numpy array from the buffer
         data = np.frombuffer(dataPointer.contents, dtype=np.uint16)
-
         return np.array(data).reshape((int(self.h), int(self.w)))
 
 
