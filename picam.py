@@ -229,12 +229,55 @@ PicamStringSize = {
 }
 PicamStringSizeLookup = dict(zip(PicamStringSize.values(), PicamStringSize.keys()))    
 #check picam.h for parameter definitions
-paramFrames = ctypes.c_int(calcParam(6,2,40))	#PicamParameter_ReadoutCount
-paramStride = ctypes.c_int(calcParam(1,1,45))	#PicamParameter_ReadoutStride
-paramROIs = ctypes.c_int(calcParam(5, 4, 37))	#PicamParameter_Rois
-paramReadRate=ctypes.c_int(calcParam(2,1,50))	#PicamParameter_ReadoutRateCalculation
-paramExpose=ctypes.c_int(calcParam(2,2,23))		#PicamParameter_ExposureTime
+# paramFrames = ctypes.c_int(calcParam(6,2,40))	#PicamParameter_ReadoutCount
+# paramStride = ctypes.c_int(calcParam(1,1,45))	#PicamParameter_ReadoutStride
+# paramROIs = ctypes.c_int(calcParam(5, 4, 37))	#PicamParameter_Rois
+# paramReadRate=ctypes.c_int(calcParam(2,1,50))	#PicamParameter_ReadoutRateCalculation
+# paramExpose=ctypes.c_int(calcParam(2,2,23))		#PicamParameter_ExposureTime
+paramFrames = ctypes.c_int(calcParam(6,2,40))    #PicamParameter_ReadoutCount
+'''PicamParameter_ReadoutCount'''
+paramStride = ctypes.c_int(calcParam(1,1,45))    #PicamParameter_ReadoutStride
+paramFrameSize = ctypes.c_int(calcParam(1,1,42))
+paramFrameStride = ctypes.c_int(calcParam(1,1,43))
+paramFramesPerRead = ctypes.c_int(calcParam(1,1,44))
+paramROIs = ctypes.c_int(calcParam(5, 4, 37))    #PicamParameter_Rois
+paramReadRate=ctypes.c_int(calcParam(2,1,50))    #PicamParameter_ReadoutRateCalculation
+paramExpose=ctypes.c_int(calcParam(2,2,23))        #PicamParameter_ExposureTime
+paramRepetitiveGate=ctypes.c_int(calcParam(7,5,94))
+paramReadoutControlMode=ctypes.c_int(calcParam(4,3,26))
+paramActiveWidth=ctypes.c_int(calcParam(1,2,1))
+paramActiveHeight=ctypes.c_int(calcParam(1,2,2))
+paramTopMargin=ctypes.c_int(calcParam(1,2,4))
+paramBottomMargin=ctypes.c_int(calcParam(1,2,6))
+paramLeftMargin=ctypes.c_int(calcParam(1,2,3))
+paramRightMargin=ctypes.c_int(calcParam(1,2,5))
+paramMaskHeight=ctypes.c_int(calcParam(1,2,7))
+paramMaskTopMargin=ctypes.c_int(calcParam(1,2,8))
+paramMaskBottomMargin=ctypes.c_int(calcParam(1,2,73))
+paramCorrectPixelBias=ctypes.c_int(calcParam(3,3,106))
+paramVerticalShiftRate=ctypes.c_int(calcParam(2,3,13))
+paramCleanUntilTrigger=ctypes.c_int(calcParam(3,3,22))
+paramCleanSerialRegister=ctypes.c_int(calcParam(3,3,19))
+paramCleanBeforeExposure=ctypes.c_int(calcParam(3,3,78))
+paramAdcSpeed=ctypes.c_int(calcParam(2,3,33))
+paramAdcQuality=ctypes.c_int(calcParam(4,3,36))
+paramAdcGain=ctypes.c_int(calcParam(4,3,35))
+paramAdcBitDepth=ctypes.c_int(calcParam(1,3,34))
+paramReadoutPortCount=ctypes.c_int(calcParam(1,3,28))
+paramSensorActiveWidth = ctypes.c_int(calcParam(1,1,59))
+paramSensorActiveHeight = ctypes.c_int(calcParam(1,1,60))
+paramShutterClosingDelay=ctypes.c_int(calcParam(2,2,25))
+paramShutterOpeningDelay=ctypes.c_int(calcParam(2,2,46))
+paramSensorTemperatureReading = ctypes.c_int(calcParam(2,1,15))
+paramSensorTemperatureSetPoint = ctypes.c_int(calcParam(2,2,14))
+paramSensorTemperatureStatus = ctypes.c_int(calcParam(4,1,16))
 
+#metadata related
+paramTimeStamps = ctypes.c_int(calcParam(4,3,68))
+paramTimeStampResolution = ctypes.c_int(calcParam(6,3,69))
+paramTimeStampBitDepth = ctypes.c_int(calcParam(1,3,70))
+paramTrackFrames = ctypes.c_int(calcParam(3,3,71))
+paramFrameTrackingBitDepth = ctypes.c_int(calcParam(1,3,72))
 #opencv related functions
 def WindowSize(numRows,numCols):
 	aspect = 1
@@ -664,8 +707,8 @@ class Camera():
         return self.temperature
 
     def SetTemperature(self, temperature):
-        self.setParameter("PicamParameter_SensorTemperatureSetPoint", int(temperature))
-
+        a = self.setParameter("PicamParameter_SensorTemperatureSetPoint", int(temperature))
+        #print('temp set',a)
     def GetTemperatureStatus(self):
         return self.getParameter("PicamParameter_SensorTemperatureStatus")
         
@@ -704,6 +747,7 @@ class Camera():
         """
         r = PicamRoi(x0, w, xbin, y0, h, ybin)
         R = PicamRois(ctypes.pointer(r), store)   # change 1 to 0 to remove a bug ?!? store the number of region 
+        self.setParameter("PicamParameter_Rois", R)
         self.setParameter("PicamParameter_Rois", R)
         self.totalFrameSize =( (w / xbin) * (h / ybin))
         self.w = (w/xbin) # modif self.w=w
