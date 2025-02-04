@@ -842,10 +842,10 @@ class SETTINGWIDGET(QWidget):
         self.binX = int(self.BINX.value())
         self.binY = int(self.BINY.value())
 
-        self.conf.setValue(self.nbcam + "/x0",self.x0)
-        self.conf.setValue(self.nbcam + "/y0",self.y0)
-        self.conf.setValue(self.nbcam + "/wroi",self.w)
-        self.conf.setValue(self.nbcam + "/hroi",self.h)
+        # self.conf.setValue(self.nbcam + "/x0",self.x0)
+        # self.conf.setValue(self.nbcam + "/y0",self.y0)
+        # self.conf.setValue(self.nbcam + "/wroi",self.w)
+        # self.conf.setValue(self.nbcam + "/hroi",self.h)
 
         self.y0 = abs (self.dimy - (self.y0 + self.h))
         
