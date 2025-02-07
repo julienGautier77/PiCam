@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Dec 31 23:14:46 2001
-on conda prompt 
 
-pip install visu
+RSAI = True add control of RSAI motors for measurement
+
 if problem Dll copy  dll in the folder , check python version if >3.7 change in picam.py self.picamLib = ctypes.CDLL(pathToLib, winmode=0)#cdll.LoadLibrary(pathToLib)
 @author: juliengautier
 modified 2019/08/13 : add position RSAI motors
 modified 2021/06/16 : add opining by serial number
 modified 2023/07/07 : PyQt6
+modified 2025/02/07 Quador comptability 
 """
+
 import __init__ 
 __version__=__init__.__version__
 __author__=__init__.__author__
@@ -33,7 +35,7 @@ except:
     
 import qdarkstyle
 from visu import SEE
-from PIL import Image
+
 
 
 class ROPPER(QWidget):
@@ -61,7 +63,7 @@ class ROPPER(QWidget):
             self.confpath = None
         
         
-        if self.confpath == None:
+        if self.confpath is None:
             self.confpath = str(p.parent / confFile) # ini file with global path
         
         self.conf = QtCore.QSettings(self.confpath, QtCore.QSettings.Format.IniFormat) # ini file 
@@ -76,7 +78,7 @@ class ROPPER(QWidget):
         if "aff" in kwds: #  affi of Visu
             self.aff = kwds["aff"]
         else: 
-            self.aff="right"   
+            self.aff = "right"   
         if "separate" in kwds:
 
             self.separate = kwds["separate"]
@@ -98,7 +100,7 @@ class ROPPER(QWidget):
         self.nbShot = 1
         self.camIsRunnig = False
         
-        if self.nbcam == None:
+        if self.nbcam is  None:
             # self.camID=None
             self.nbcam = "camDefault"
         
@@ -126,7 +128,7 @@ class ROPPER(QWidget):
        
         if temp == None:
             temp = 123
-        if stat == 2 :
+        if stat == 2 :  # Temperature locked 
             tLocked = True
             self.tempBox.setStyleSheet('font :bold 10pt;color: green')
         else :
@@ -222,7 +224,7 @@ class ROPPER(QWidget):
         hboxShutter = QHBoxLayout()
         hboxShutter.setContentsMargins(0, 0, 0, 5)
         hboxShutter.setSpacing(10)
-        vboxShutter=QVBoxLayout()
+        vboxShutter = QVBoxLayout()
         vboxShutter.setSpacing(0)
         vboxShutter.addWidget(self.labelExp)#,Qt.AlignLef)
         
@@ -253,7 +255,7 @@ class ROPPER(QWidget):
         hboxGain = QHBoxLayout()
         hboxGain.setContentsMargins(0, 0, 0, 5)
         hboxGain.setSpacing(10)
-        vboxGain=QVBoxLayout()
+        vboxGain = QVBoxLayout()
         vboxGain.setSpacing(0)
         vboxGain.addWidget(self.labelGain)
 
@@ -286,8 +288,7 @@ class ROPPER(QWidget):
             else:
                 self.visualisation.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.dockControl)
                 self.visualisation.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.dockTrig)
-                self.visualisation.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.dockShutter)
-                
+                self.visualisation.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.dockShutter)  
         else:
         #self.dockControl.setFeatures(QDockWidget.DockWidgetMovable)
             self.visualisation.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea,self.dockControl)
@@ -318,7 +319,7 @@ class ROPPER(QWidget):
 
         if self.isConnected is True: 
             
-            self.settingWidget = SETTINGWIDGET(cam=self.cam,visualisation=self.visualisation, conf=self.conf,nbcam=self.nbcam,parent= self)
+            self.settingWidget = SETTINGWIDGET(cam=self.cam,visualisation=self.visualisation, conf=self.conf,nbcam=self.nbcam,cameraType=self.cameraType)
 
             self.sh = int(self.conf.value(self.nbcam+"/shutter")   ) # set exp time in shutter box 
             self.shutterBox.setValue(int(self.sh))
@@ -331,8 +332,6 @@ class ROPPER(QWidget):
             
             self.cam.setParameter("PicamParameter_CleanCycleCount", int(1))
             self.cam.setParameter("PicamParameter_CleanCycleHeight", int(1))
-            
-            # self.cam.setParameter("TriggerResponse"     , int(1)) # pas de trig
             self.cam.setParameter("PicamParameter_TriggerDetermination", int(1))
 
             if self.cameraType == 'MTE':
@@ -461,8 +460,7 @@ class ROPPER(QWidget):
         self.camIsRunnig = False
 
     def Trigger(self):
-    ## trig la CCD
-    # work with pixis camera but not with mte camera     
+    ## trig la CCD    
     
    #  PicamTriggerDetermination_PositivePolarity       = 1,
    # PicamTriggerDetermination_NegativePolarity       = 2,
@@ -484,25 +482,24 @@ class ROPPER(QWidget):
    
    # PicamTriggerTermination_FiftyOhms     = 1,
    #  PicamTriggerTermination_HighImpedance = 2
+
         itrig = self.trigg.currentIndex()
         if itrig == 0:
             self.cam.setParameter("PicamParameter_TriggerResponse", int(1))
             self.cam.setParameter("PicamParameter_TriggerDetermination", int(3))
             # self.cam.setParameter("PicamParameter_TriggerSource",int(3)) # pas dispo 
-            # self.cam.sendConfiguration()
             print ('trigger OFF')
         if itrig == 1:
             # self.cam.setParameter("PicamParameter_TriggerSource",int(1))
             self.cam.setParameter("PicamParameter_TriggerResponse", int(2))
             self.cam.setParameter("PicamParameter_TriggerDetermination", int(3)) 
-            # self.cam.sendConfiguration()
+            
             print ('Trigger ON ')
-        #Úprint('trigger S R T',self.cam.getParameter("PicamParameter_TriggerDetermination"))
+        #print('trigger S R T',self.cam.getParameter("PicamParameter_TriggerDetermination"))
     
     def Display(self,data):
         '''Display data with Visu module
         '''
-        # self.visualisation.newDataReceived(self.data) # send data to visualisation widget
         self.signalData.emit(data)
     
     def nbShotAction(self):
@@ -550,7 +547,6 @@ class ThreadRunAcq(QtCore.QThread):
     newDataRun = QtCore.pyqtSignal(object)
     
     def __init__(self, parent):
-        # super(ThreadRunAcq,self).__init__(parent)
         super().__init__()
         self.stopRunAcq = False
         self.parent = parent
@@ -561,8 +557,7 @@ class ThreadRunAcq(QtCore.QThread):
     
     def run(self):
         print('-----> Start  multi acquisition')
-        #print('threadexp',self.cam.GetExposure())
-        # self.cam.Acquisition(timeout=2000)
+
         while True :
             if self.stopRunAcq:
                 break
@@ -599,8 +594,7 @@ class ThreadOneAcq(QtCore.QThread):
     
     def run(self):
         print('-----> Start  ',self.parent.nbShot,' acquisition')
-        #print('threadexp',self.cam.GetExposure())
-        # self.cam.Acquisition(timeout=2000)
+
         for i in range(self.parent.nbShot) :
             if self.stopRunAcq:
                 break
@@ -638,13 +632,13 @@ class ThreadTemperature(QtCore.QThread):
         self.parent = parent
 
     def run(self):
-        while self.cam.cam is not None  and self.parent.camIsRunnig == False:#¶and self.cam.IsAcquisitionRunning()==False:
+        while self.cam.cam is not None  and self.parent.camIsRunnig == False:  # and self.cam.IsAcquisitionRunning()==False:
             temp = self.cam.GetTemperature()
             time.sleep(1)
             stat = int(self.cam.GetTemperatureStatus())
             self.TEMP.emit(temp,stat)
-            #print('satus',self.cam.GetTemperatureStatus(),temp)
-            if self.stopTemp:
+            # print('satus',self.cam.GetTemperatureStatus(),temp)
+            if self.stopTemp :
                 break
                   
     def stopThreadTemp(self):
@@ -686,7 +680,6 @@ class TEMPWIDGET(QWidget):
     def SET(self):
         temp = self.tempVal.value()
         self.cam.SetTemperature(temp)
-        # self.cam.sendConfiguration()
     
     def closeEvent(self, event):
         """ when closing the window
@@ -698,7 +691,7 @@ class TEMPWIDGET(QWidget):
         
 class SETTINGWIDGET(QWidget):
     
-    def __init__(self, cam = None, visualisation=None, parent=None, conf=None ,nbcam= None):
+    def __init__(self, cam = None, visualisation=None, parent=None, conf=None ,nbcam= None,cameraType=''):
         
         super(SETTINGWIDGET, self).__init__(parent)
         self.cam = cam
@@ -707,18 +700,20 @@ class SETTINGWIDGET(QWidget):
         self.parent = parent
         self.conf = conf
         self.nbcam = nbcam
+        self.cameraType = cameraType
         self.setup()
         self.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
         self.actionButton()
         self.roi1Is = False
         
     def setup(self) :
-        if self.parent.cameraType == 'MTE':
+        if self.cameraType == 'MTE':
             self.dimx = self.cam.getParameter("PicamParameter_ActiveWidth")
             self.dimy = self.cam.getParameter("PicamParameter_ActiveHeight")
         else :
             self.dimx =self.cam.getParameter("PicamParameter_SensorActiveWidth")
             self.dimy = self.cam.getParameter("PicamParameter_SensorActiveHeight")
+            
         self.setWindowIcon(QIcon('./icons/LOA.png'))
         self.setWindowTitle('SETTINGS')
         self.vbox = QVBoxLayout()
@@ -934,6 +929,6 @@ if __name__ == "__main__":
     appli = QApplication(sys.argv)
     confpathVisu = 'C:/Users/GAUTIER/Desktop/python/princeton/confCCD.ini'
     appli.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
-    e = ROPPER(cam='quadro',motRSAI=True,spectro=False)#,confpath=confpathVisu)  
+    e = ROPPER(cam='quadro',motRSAI=True,spectro=False)
     e.show()
     appli.exec_()       

@@ -468,8 +468,8 @@ class Camera():
         else:
             self.picamLib.Picam_GetCameraID(self.cam,ctypes.byref(self.camID))
             print('Open First camera avaible : Camera Sensor: %s, Serial #: %s'%(self.camID.sensor_name.decode('utf-8'),self.camID.serial_number.decode('utf-8')))
-        #self.GetFirstROI()
-        print('ok')
+        #self.GetFirstROI() # modif 2025/02 for quadro 
+        
         #print('\tFirst ROI: %d (cols) x %d (rows)'%(self.numCols,self.numRows))
     
         
@@ -532,7 +532,7 @@ class Camera():
         
     def SetExposure(self, value):
         self.setParameter("PicamParameter_ExposureTime",value)
-        print("exposure set to :",self.GetExposure())
+        # print("exposure set to :",self.GetExposure())
     def GetExposure(self):
         exp=self.getParameter("PicamParameter_ExposureTime")
         # print("Exposure  is :",exp)
