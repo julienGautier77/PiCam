@@ -382,7 +382,7 @@ class Camera():
         self.readRate = ctypes.c_double(0)
         pathToLib = os.path.join(os.environ["PicamRoot"], "Runtime")
         pathToLib = os.path.join(pathToLib, "Picam.dll")
-        #print( 'dll file: ',pathToLib)
+        print( 'dll file: ',pathToLib)
         self.picamLib = ctypes.CDLL(pathToLib, winmode=0)   #cdll.LoadLibrary(pathToLib) # add winmode see :https://syntaxbug.com/ea75a69575/
         self.counter = 0
         self.totalData = np.array([])
@@ -468,7 +468,8 @@ class Camera():
         else:
             self.picamLib.Picam_GetCameraID(self.cam,ctypes.byref(self.camID))
             print('Open First camera avaible : Camera Sensor: %s, Serial #: %s'%(self.camID.sensor_name.decode('utf-8'),self.camID.serial_number.decode('utf-8')))
-        self.GetFirstROI()
+        #self.GetFirstROI()
+        print('ok')
         #print('\tFirst ROI: %d (cols) x %d (rows)'%(self.numCols,self.numRows))
     
         

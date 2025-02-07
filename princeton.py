@@ -104,7 +104,7 @@ class ROPPER(QWidget):
         
         self.ccdName = self.conf.value(self.nbcam+"/nameCDD")
         self.serial = self.conf.value(self.nbcam+"/serial")
-       
+        
         self.initCam()
         self.setup()
         self.itrig = 0
@@ -115,7 +115,7 @@ class ROPPER(QWidget):
         self.cam = picam.Camera()
         camProp = self.cam.getAvailableCameras()
         #print('Camera name is : ' ,str(self.ccdName))
-        self.cameraType = 'Princeton Instrument'
+        self.cameraType = self.conf.value(self.nbcam+"/camType")
         try :
             self.cam.OpenCamerabySerial(serial=self.serial)
             self.isConnected = True
@@ -318,7 +318,7 @@ class ROPPER(QWidget):
 
         if self.isConnected is True: 
             
-            self.settingWidget = SETTINGWIDGET(cam=self.cam,visualisation=self.visualisation, conf=self.conf,nbcam=self.nbcam)
+            self.settingWidget = SETTINGWIDGET(cam=self.cam,visualisation=self.visualisation, conf=self.conf,nbcam=self.nbcam,parent= self)
 
             self.sh = int(self.conf.value(self.nbcam+"/shutter")   ) # set exp time in shutter box 
             self.shutterBox.setValue(int(self.sh))
@@ -334,8 +334,14 @@ class ROPPER(QWidget):
             
             # self.cam.setParameter("TriggerResponse"     , int(1)) # pas de trig
             self.cam.setParameter("PicamParameter_TriggerDetermination", int(1))
-            self.w = self.cam.getParameter("PicamParameter_ActiveWidth")
-            self.h = self.cam.getParameter("PicamParameter_ActiveHeight")
+
+            if self.cameraType == 'MTE':
+                self.w = self.cam.getParameter("PicamParameter_ActiveWidth")
+                self.h = self.cam.getParameter("PicamParameter_ActiveHeight")
+            else :
+                self.w =self.cam.getParameter("PicamParameter_SensorActiveWidth")
+                self.h = self.cam.getParameter("PicamParameter_SensorActiveHeight")
+            
             
             self.cam.setROI(0, self.w, 1, 0, self.h, 1, 0) # set full frame ROI 
             self.cam.setParameter("PicamParameter_ExposureTime", int(self.sh))
@@ -707,9 +713,12 @@ class SETTINGWIDGET(QWidget):
         self.roi1Is = False
         
     def setup(self) :
-
-        self.dimx = self.cam.getParameter("PicamParameter_ActiveWidth")
-        self.dimy = self.cam.getParameter("PicamParameter_ActiveHeight")
+        if self.parent.cameraType == 'MTE':
+            self.dimx = self.cam.getParameter("PicamParameter_ActiveWidth")
+            self.dimy = self.cam.getParameter("PicamParameter_ActiveHeight")
+        else :
+            self.dimx =self.cam.getParameter("PicamParameter_SensorActiveWidth")
+            self.dimy = self.cam.getParameter("PicamParameter_SensorActiveHeight")
         self.setWindowIcon(QIcon('./icons/LOA.png'))
         self.setWindowTitle('SETTINGS')
         self.vbox = QVBoxLayout()
@@ -925,6 +934,6 @@ if __name__ == "__main__":
     appli = QApplication(sys.argv)
     confpathVisu = 'C:/Users/GAUTIER/Desktop/python/princeton/confCCD.ini'
     appli.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
-    e = ROPPER(cam='MTE',motRSAI=True,spectro=False)#,confpath=confpathVisu)  
+    e = ROPPER(cam='quadro',motRSAI=True,spectro=False)#,confpath=confpathVisu)  
     e.show()
     appli.exec_()       

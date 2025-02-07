@@ -1,0 +1,114 @@
+;/*++
+;
+;Module Name:
+;
+;    PI1394WDF.INF
+;
+;Abstract:
+;    Installation inf for PI 1394 kernel mode driver
+;
+;--*/
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=PI1394
+;Class=Base
+ClassGuid={2BAB0CB8-D225-4798-A119-AF26CBBC8960}
+Provider=%PI%
+DriverVer=01/20/2021,1.3.0.0
+CatalogFile=PI1394x64.cat
+PnpLockDown=1
+
+[DestinationDirs]
+DefaultDestDir = 13 
+;CoInstaller_CopyFiles = 13;//was 11
+
+[SourceDisksNames]
+1=%Disk_Description%,,,
+
+[SourceDisksFiles]
+pi1394wdf.sys = 1
+;WdfCoInstaller01009.dll=1 ; make sure the number matches with SourceDisksNames
+
+; ================= Class section =====================
+
+[ClassInstall32]
+Addreg=PIClassReg     
+
+[PIClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-21
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%PIKMDF%=PI,NTamd64
+
+[PI.NTamd64]
+;this one passes signability test but doesn't load the driver when camera is turned on
+;%1394\Princeton_Instruments&1394%=PI1394.Dev,1394\Princeton_Instruments&1394
+;the following line doesn't pass signability test
+
+;"working one" that doesn't sign
+;%1394\Princeton_Instruments&1394%=PI1394.Dev, 1394\13D8&1
+%1394\Princeton_Instruments&1394%=PI1394.Dev, 1394\"Princeton Instruments"&"1394", 13D80000000001
+
+[PI1394.Dev.NT]
+CopyFiles=PI1394.Files.Ext
+
+[PI1394.Files.Ext]
+pi1394wdf.sys
+
+[PI1394.Dev.NT.HW]
+AddReg=pi1394_AddReg
+
+[pi1394_AddReg]
+HKR,,FriendlyName,,%PI_QUADRO%
+
+;================== Service Installation ===============
+[PI1394.Dev.NT.Services]
+AddService = PI1394, %SPSVCINST_ASSOCSERVICE%, PI1394.AddService
+
+[PI1394.AddService]
+DisplayName    = %PI1394.SvcDesc%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\pi1394wdf.sys
+LoadOrderGroup = Base
+
+;-------------- WDF Coinstaller installation
+
+;[PI1394.Dev.NT.CoInstallers]
+;AddReg=CoInstaller_AddReg
+;CopyFiles=CoInstaller_CopyFiles
+
+;[CoInstaller_AddReg]
+;HKR,,CoInstallers32,0x00010000, "WdfCoInstaller01009.dll,WdfCoInstaller"
+
+;[CoInstaller_CopyFiles]
+;WdfCoInstaller01009.dll
+
+[PI1394.Dev.NT.Wdf]
+KmdfService = PI1394, PI1394_wdfsect
+
+[PI1394_wdfsect]
+KmdfLibraryVersion = 1.9
+
+;---------------------------------------------------------------;
+
+[Strings]
+PI="Teledyne Princeton Instruments"
+PIKMDF="Teledyne Princeton Instruments"
+MfgName="PI"
+Disk_Description="Quad-RO Installation Disk"
+1394\Princeton_Instruments&1394="PI-1394 QuadRO"
+PI1394.SvcDesc="PI1394 Service"
+ClassName       = "Princeton Instruments 1394"
+SPSVCINST_ASSOCSERVICE= 0x00000002
+PI_QUADRO="PI 1394 Quad-RO Camera Interface"
+VendorName="13D8"
+ModelName="1"
+Copyright="Copyright(c) Teledyne Princeton Instruments 2021"
