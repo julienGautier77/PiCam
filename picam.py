@@ -380,9 +380,10 @@ class Camera():
         self.numRows = ctypes.c_int(0)
         self.numCols = ctypes.c_int(0)
         self.readRate = ctypes.c_double(0)
-        pathToLib = os.path.join(os.environ["PicamRoot"], "Runtime")
-        pathToLib = os.path.join(pathToLib, "Picam.dll")
-        print( 'dll file: ',pathToLib)
+        #pathToLib = os.path.join(os.environ["PicamRoot"], "Runtime")
+        #pathToLib = os.path.join(pathToLib, "Picam.dll")
+        #print( 'dll file: ',pathToLib)
+        pathToLib = 'C:\Program Files\Common Files\Princeton Instruments\Picam\Runtime\picam.dll'
         self.picamLib = ctypes.CDLL(pathToLib, winmode=0)   #cdll.LoadLibrary(pathToLib) # add winmode see :https://syntaxbug.com/ea75a69575/
         self.counter = 0
         self.totalData = np.array([])
@@ -670,8 +671,6 @@ class Camera():
 #        print(errors)
         return t
     
-
-
     def IsAcquisitionRunning(self):
         running = ctypes.c_bool()
         self.picamLib.Picam_IsAcquisitionRunning(self.cam, ctypes.pointer(running))
@@ -681,9 +680,6 @@ class Camera():
     
     def StopAcquisition(self):
         self.picamLib.Picam_StopAcquisition(self.cam)
-    
-    
-    
     
     def GetAcquiredData(self):
         """This is an internally used function to convert the readout buffer into a sequence of numpy arrays.
@@ -710,6 +706,7 @@ class Camera():
     def SetTemperature(self, temperature):
         a = self.setParameter("PicamParameter_SensorTemperatureSetPoint", int(temperature))
         #print('temp set',a)
+        
     def GetTemperatureStatus(self):
         return self.getParameter("PicamParameter_SensorTemperatureStatus")
         

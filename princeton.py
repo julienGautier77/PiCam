@@ -18,7 +18,7 @@ __author__=__init__.__author__
 version=__version__
 
 from PyQt6.QtWidgets import QApplication,QVBoxLayout,QHBoxLayout,QWidget,QPushButton,QToolButton,QLayout,QMenu,QDockWidget,QDoubleSpinBox,QGridLayout, QFileDialog
-from PyQt6.QtWidgets import QComboBox,QSlider,QLabel,QSpinBox,QInputDialog
+from PyQt6.QtWidgets import QComboBox,QSlider,QLabel,QSpinBox,QInputDialog,QSizePolicy,QCheckBox,QProgressBar
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
@@ -40,11 +40,16 @@ from visu import SEE
 
 class ROPPER(QWidget):
 
-    signalData=QtCore.pyqtSignal(object)
-    
+    signalData = QtCore.pyqtSignal(object)  # signal emited when receive image*
+    updateBar_signal = QtCore.pyqtSignal(object)  # signal for update progressbar
+
     def __init__(self,cam=None,confFile='confCCD.ini',**kwds):
         
         super(ROPPER, self).__init__()
+        self.progressWin = ProgressScreen(parent = self)
+        self.progressWin.setWindowFlags(Qt.WindowType.SplashScreen | Qt.WindowType.WindowStaysOnTopHint)
+        self.progressWin.show()
+
         p = pathlib.Path(__file__)
         sepa = os.sep
         self.version = version
@@ -106,17 +111,22 @@ class ROPPER(QWidget):
         
         self.ccdName = self.conf.value(self.nbcam+"/nameCDD")
         self.serial = self.conf.value(self.nbcam+"/serial")
-        
+        text = 'Connect to Camera name  : ' + self.nbcam + ' ( It can take a while ... )'
+        self.updateBar_signal.emit([text,25])
         self.initCam()
+        text = 'widget loading  ' + self.nbcam + ' ...'
+        self.updateBar_signal.emit([text,75])
         self.setup()
         self.itrig = 0
         self.actionButton()
         self.camIsRunnig = False
-       
+        self.updateBar_signal.emit(['end',100])
+        self.progressWin.close()
+    
     def initCam(self):
         self.cam = picam.Camera()
         camProp = self.cam.getAvailableCameras()
-        #print('Camera name is : ' ,str(self.ccdName))
+        print('Camera name is : ' ,str(self.ccdName))
         self.cameraType = self.conf.value(self.nbcam+"/camType")
         try :
             self.cam.OpenCamerabySerial(serial=self.serial)
@@ -125,7 +135,7 @@ class ROPPER(QWidget):
             self.isConnected = False
          
     def update_temp(self, temp=None,stat=None):
-       
+       # print(temp,stat)
         if temp == None:
             temp = 123
         if stat == 2 :  # Temperature locked 
@@ -305,6 +315,23 @@ class ROPPER(QWidget):
         self.settingButton.setText('Cam Set.')
         hbox1.addWidget(self.settingButton)
         
+
+        self.cleaningButton = QToolButton(self)
+        self.cleaningButton.setMaximumWidth(self.sizebuttonMax+30)
+        self.cleaningButton.setMinimumWidth(self.sizebuttonMax+30)
+        self.cleaningButton.setMaximumHeight(self.sizebuttonMax)
+        self.cleaningButton.setMinimumHeight(self.sizebuttonMax)
+        self.cleaningButton.setText('Clean')
+        hbox1.addWidget(self.cleaningButton)
+
+        self.DigitalButton = QToolButton(self)
+        self.DigitalButton.setMaximumWidth(self.sizebuttonMax+30)
+        self.DigitalButton.setMinimumWidth(self.sizebuttonMax+30)
+        self.DigitalButton.setMaximumHeight(self.sizebuttonMax)
+        self.DigitalButton.setMinimumHeight(self.sizebuttonMax)
+        self.DigitalButton.setText('Gain')
+        hbox1.addWidget(self.DigitalButton)
+
         self.tempButton = QToolButton(self)
         self.tempButton.setMaximumWidth(self.sizebuttonMax+10)
         self.tempButton.setMinimumWidth(self.sizebuttonMax+10)
@@ -314,12 +341,15 @@ class ROPPER(QWidget):
         hbox1.addWidget(self.tempButton)
         self.tempBox = QLabel('?')
         hbox1.addWidget(self.tempBox)
+        
         self.setLayout(hMainLayout)
         self.setContentsMargins(0, 0, 0, 0)
 
         if self.isConnected is True: 
             
             self.settingWidget = SETTINGWIDGET(cam=self.cam,visualisation=self.visualisation, conf=self.conf,nbcam=self.nbcam,cameraType=self.cameraType)
+            self.cleaningWidget = CLEANINGWiDGET(cam=self.cam)
+            self.gainWidget = GAINWIDGET(cam=self.cam,cameraType=self.cameraType)
 
             self.sh = int(self.conf.value(self.nbcam+"/shutter")   ) # set exp time in shutter box 
             self.shutterBox.setValue(int(self.sh))
@@ -333,15 +363,32 @@ class ROPPER(QWidget):
             self.cam.setParameter("PicamParameter_CleanCycleCount", int(1))
             self.cam.setParameter("PicamParameter_CleanCycleHeight", int(1))
             self.cam.setParameter("PicamParameter_TriggerDetermination", int(1))
+            self.cam.setParameter("PicamParameter_CleanUntilTrigger",int(0))
 
             if self.cameraType == 'MTE':
                 self.w = self.cam.getParameter("PicamParameter_ActiveWidth")
                 self.h = self.cam.getParameter("PicamParameter_ActiveHeight")
+                self.cam.SetTemperature(12)
             else :
                 self.w =self.cam.getParameter("PicamParameter_SensorActiveWidth")
                 self.h = self.cam.getParameter("PicamParameter_SensorActiveHeight")
-            
-            
+
+            if self.cameraType == 'ProEM':
+                #print(self.cameraType)
+                self.cam.setParameter("PicamParameter_AdcQuality",int(1))
+                time.sleep(0.1)
+                self.cam.setParameter("PicamParameter_AdcSpeed",float(1)) # 1 MHz
+                time.sleep(0.1)
+                self.cam.setParameter("PicamParameter_AdcAnalogGain",int(3)) # low gain
+                time.sleep(0.1)
+                self.cam.SetTemperature(-60)
+                time.sleep(0.1)
+                
+            elif self.cameraType == 'Quadro':
+                self.cam.SetTemperature(-15)
+            else : 
+                self.cam.SetTemperature(12)
+
             self.cam.setROI(0, self.w, 1, 0, self.h, 1, 0) # set full frame ROI 
             self.cam.setParameter("PicamParameter_ExposureTime", int(self.sh))
             
@@ -349,7 +396,7 @@ class ROPPER(QWidget):
             self.dimy = self.h
             #print('adc',self.cam.getParameter("PicamParameter_AdcSpeed"))
             #print('ShutterTimingMode',self.cam.getParameter("PicamParameter_ShutterTimingMode"))
-            self.cam.SetTemperature(15)
+            
             self.serial = self.cam.getSerialNumber()
             self.tempWidget = TEMPWIDGET(cam=self.cam)
             self.threadRunAcq = ThreadRunAcq(self)
@@ -388,12 +435,15 @@ class ROPPER(QWidget):
         self.trigg.currentIndexChanged.connect(self.Trigger)
         self.tempButton.clicked.connect(lambda:self.open_widget(self.tempWidget) )
         self.settingButton.clicked.connect(lambda:self.open_widget(self.settingWidget) )
+        self.cleaningButton.clicked.connect(lambda:self.open_widget(self.cleaningWidget) )
+        self.DigitalButton.clicked.connect(lambda:self.open_widget(self.gainWidget) )
         
     
     def acquireOneImage(self):
         '''Start on acquisition
         '''
         self.imageReceived=False
+        self.threadTemp.stopThreadTemp()
         self.runButton.setEnabled(False)
         self.runButton.setStyleSheet("QToolButton:!pressed{border-image: url(%s);background-color: gray ;border-color: gray;}""QToolButton:pressed{border-image: url(%s);background-color: gray ;border-color: gray}"%(self.iconPlay,self.iconPlay))
         self.snapButton.setEnabled(False)
@@ -410,11 +460,15 @@ class ROPPER(QWidget):
             child.setEnabled(False)
         for child in self.settingWidget.findChildren(QComboBox):
             child.setEnabled(False)
-
+        for child in self.cleaningWidget.findChildren(QDoubleSpinBox):
+            child.setEnabled(False)
+        for child in self.gainWidget.findChildren(QComboBox):
+            child.setEnabled(False)
 
     def acquireMultiImage(self):    
         ''' start the acquisition thread
         '''
+        self.threadTemp.stopThreadTemp()
         self.runButton.setEnabled(False)
         self.runButton.setStyleSheet("QToolButton:!pressed{border-image: url(%s);background-color: gray ;border-color: gray;}""QToolButton:pressed{border-image: url(%s);background-color: gray ;border-color: gray}"%(self.iconPlay,self.iconPlay))
         self.snapButton.setEnabled(False)
@@ -428,6 +482,11 @@ class ROPPER(QWidget):
             child.setEnabled(False)
         for child in self.settingWidget.findChildren(QComboBox):
             child.setEnabled(False)    
+        for child in self.cleaningWidget.findChildren(QDoubleSpinBox):
+            child.setEnabled(False)
+        for child in self.gainWidget.findChildren(QComboBox):
+            child.setEnabled(False)
+        
         self.threadRunAcq.newRun() # to set stopRunAcq=False
         self.threadRunAcq.start()
         self.camIsRunnig = True 
@@ -444,6 +503,9 @@ class ROPPER(QWidget):
         except:
             pass
         print('acquisition stopped')
+        self.threadTemp.newRun() # init le run temp
+        time.sleep(0.1)
+        self.threadTemp.start() # redemarre le thread temp
         self.runButton.setEnabled(True)
         self.runButton.setStyleSheet("QToolButton:!pressed{border-image: url(%s);background-color: transparent ;border-color: green;}""QToolButton:pressed{border-image: url(%s);background-color: gray ;border-color: gray}"%(self.iconPlay,self.iconPlay))
         self.snapButton.setEnabled(True)
@@ -457,6 +519,11 @@ class ROPPER(QWidget):
             child.setEnabled(True)
         for child in self.settingWidget.findChildren(QComboBox):
             child.setEnabled(True)
+        for child in self.cleaningWidget.findChildren(QDoubleSpinBox):
+            child.setEnabled(True)
+        for child in self.gainWidget.findChildren(QComboBox):
+            child.setEnabled(True)
+
         self.camIsRunnig = False
 
     def Trigger(self):
@@ -493,10 +560,8 @@ class ROPPER(QWidget):
             # self.cam.setParameter("PicamParameter_TriggerSource",int(1))
             self.cam.setParameter("PicamParameter_TriggerResponse", int(2))
             self.cam.setParameter("PicamParameter_TriggerDetermination", int(3)) 
-            
             print ('Trigger ON ')
-        #print('trigger S R T',self.cam.getParameter("PicamParameter_TriggerDetermination"))
-    
+        
     def Display(self,data):
         '''Display data with Visu module
         '''
@@ -534,13 +599,19 @@ class ROPPER(QWidget):
         except:
             print('no camera connected')
         #self.threadTemp.stopThreadTemp()
+        time.sleep(0.1)
         self.cam.disconnect()
         
         time.sleep(0.2)      
         if self.isConnected is True:
             if self.settingWidget.isWinOpen is True:
                 self.settingWidget.close()
-
+            if self.cleaningWidget.isWinOpen is True:
+                self.cleaningWidget.close()
+            if self.tempWidget.isWinOpen is True:
+                self.self.tempWidget.close()
+            if self.gainWidget.isWinOpen is True:
+                self.self.tempWidget.close()
 
 class ThreadRunAcq(QtCore.QThread):
     
@@ -632,23 +703,28 @@ class ThreadTemperature(QtCore.QThread):
         self.parent = parent
 
     def run(self):
-        while self.cam.cam is not None  and self.parent.camIsRunnig == False:  # and self.cam.IsAcquisitionRunning()==False:
-            temp = self.cam.GetTemperature()
-            time.sleep(1)
-            stat = int(self.cam.GetTemperatureStatus())
-            self.TEMP.emit(temp,stat)
-            # print('satus',self.cam.GetTemperatureStatus(),temp)
+        while True:# self.cam.cam is not None  and self.parent.camIsRunnig == False:  # and self.cam.IsAcquisitionRunning()==False:
+            try :
+                temp = self.cam.GetTemperature()
+                time.sleep(1)
+                stat = int(self.cam.GetTemperatureStatus())
+                self.TEMP.emit(temp,stat)
+            #print('satus',self.cam.GetTemperatureStatus(),temp)
+            except : pass
             if self.stopTemp :
                 break
                   
     def stopThreadTemp(self):
         self.stopTemp = True
         print ('stop thread temperature')  
-        self.terminate()        
-
+        #self.terminate()     
+        #    
+    def newRun(self):
+        self.stopTemp = False
 
 class TEMPWIDGET(QWidget):
-    
+    '''widget setting temp'''
+
     def __init__(self, cam=None,parent=None):
         super().__init__()
         # super(TEMPWIDGET, self).__init__(parent)
@@ -666,8 +742,8 @@ class TEMPWIDGET(QWidget):
         self.tempVal = QSpinBox(self)
         self.tempVal.setSuffix(" %s" % '°C')
         self.tempVal.setMaximum(21)
-        self.tempVal.setMinimum(-40)
-        self.tempVal.setValue(12)
+        self.tempVal.setMinimum(-60)
+        self.tempVal.setValue(int(12))
         self.tempSet = QPushButton('Set')
         self.hbox = QHBoxLayout()
         self.hbox.addWidget(labelT)
@@ -680,7 +756,8 @@ class TEMPWIDGET(QWidget):
     def SET(self):
         temp = self.tempVal.value()
         self.cam.SetTemperature(temp)
-    
+        # print('ici temp',self.cam.GetTemperature())
+
     def closeEvent(self, event):
         """ when closing the window
         """
@@ -690,7 +767,7 @@ class TEMPWIDGET(QWidget):
         
         
 class SETTINGWIDGET(QWidget):
-    
+    ''' widget setting ROI  and shutter mode'''
     def __init__(self, cam = None, visualisation=None, parent=None, conf=None ,nbcam= None,cameraType=''):
         
         super(SETTINGWIDGET, self).__init__(parent)
@@ -728,17 +805,6 @@ class SETTINGWIDGET(QWidget):
         hboxShutter.addWidget(shutterLabel)
         hboxShutter.addWidget(self.shutterMode)
         self.vbox.addLayout(hboxShutter)
-        
-        hboxFrequency = QHBoxLayout()
-        frequencyLabel = QLabel('Frequency')
-        self.frequency = QComboBox()
-        self.frequency.setMaximumWidth(100)
-        self.frequency.addItem('Normal')
-        self.frequency.addItem('Always Close')
-        self.frequency.addItem('Always Open')
-        hboxFrequency.addWidget(frequencyLabel)
-        hboxFrequency.addWidget(self.frequency)
-        self.vbox.addLayout(hboxFrequency)
         
         hboxROI = QHBoxLayout()
         hbuttonROI = QVBoxLayout()
@@ -810,7 +876,6 @@ class SETTINGWIDGET(QWidget):
     def actionButton(self):
         self.setROIButton.clicked.connect(self.roiSet)
         self.setROIFullButton.clicked.connect(self.roiFull)
-        self.frequency.currentIndexChanged.connect(self.setFrequency)
         self.shutterMode.currentIndexChanged.connect(self.setShutterMode)
         self.setROIMouseButton.clicked.connect(self.mouseROI)
         self.roi1.sigRegionChangeFinished.connect(self.mousFinished)
@@ -884,20 +949,6 @@ class SETTINGWIDGET(QWidget):
             self.visualisation.p1.removeItem(self.roi1)
             self.roi1Is = False
         
-    def setFrequency(self) :
-        """
-        set frequency reading in Mhz
-        """          
-        ifreq = self.freqency.currentIndex()
-        if ifreq == 0:
-             self.cam.setParameter("PicamParameter_AdcSpeed",0.1)
-        if ifreq == 0:
-             self.cam.setParameter("PicamParameter_AdcSpeed",1)
-        if ifreq == 0:
-             self.cam.setParameter("PicamParameter_AdcSpeed",2)
-             
-        print('adc frequency(Mhz)',self.cam.getParameter("AdcSpeed"))
-
     def setShutterMode(self):
         """ set shutter mode
         """
@@ -921,14 +972,245 @@ class SETTINGWIDGET(QWidget):
             self.visualisation.p1.removeItem(self.roi1)
             self.roi1Is = False
         time.sleep(0.1)
-        
         event.accept() 
+
+class CLEANINGWiDGET(QWidget):
+    '''widget for setting cleaning'''
+
+    def __init__(self, cam = None, parent=None):
         
+        super(CLEANINGWiDGET, self).__init__(parent)
+
+        self.cam = cam
+        self.isWinOpen = False
+        self.parent = parent
+        self.setup()
+        self.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
+        self.setWindowIcon(QIcon('./icons/LOA.png'))
+        self.setWindowTitle('Cleaning Options')
+    
+    def setup(self):
+
+        self.grid = QGridLayout()
+        cleanLabel = QLabel('Cleaning Cycles')
+        cleanLabel.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
+        cleanLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cleanCycleLabel = QLabel('Clean Cycles')
+        self.cleanCycles = QDoubleSpinBox()
+        self.cleanCycles.setValue(1)
+        cleanCycleHeightLabel = QLabel('Clean Cycle Height')
+        self.cleanCycleHeight = QDoubleSpinBox()
+        self.cleanCycleHeight.setValue(1)
+        self.clearTrig = QCheckBox('Clean Until Trig')
+        self.clearTrig.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.setBut = QPushButton('Set')
+        self.setBut.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
+        self.grid.addWidget(cleanLabel,0,0,1,2)
+        self.grid.addWidget(cleanCycleLabel,1,0)
+        self.grid.addWidget(self.cleanCycles,1,1)
+        self.grid.addWidget(cleanCycleHeightLabel,2,0)
+        self.grid.addWidget(self.cleanCycleHeight,2,1)
+        self.grid.addWidget(self.clearTrig,3,0)
+        self.grid.addWidget(self.setBut,4,0,2,4)
+        
+        self.setLayout(self.grid)
+
+        self.setBut.clicked.connect(self.setAction)
+        self.clearTrig.stateChanged.connect(self.setAction)
+
+    def setAction(self):
+        self.cam.setParameter("PicamParameter_CleanCycleCount", int(self.cleanCycles.value()))
+        self.cam.setParameter("PicamParameter_CleanCycleHeight", int(self.cleanCycleHeight.value()))
+        self.cam.setParameter("PicamParameter_CleanUntilTrigger",int(self.clearTrig.isChecked()))
+
+    def closeEvent(self, event):
+        """ when closing the window
+        """
+        self.isWinOpen = False
+        event.accept()
+        
+class GAINWIDGET(QWidget):
+    '''Widget to control gain anolog and digital'''
+
+    def __init__(self, cam = None, cameraType=None,parent=None):
+        
+        super(GAINWIDGET, self).__init__(parent)
+        self.cam = cam
+        self.isWinOpen = False
+        self.parent = parent
+        self.qualityValue = 'LowGain'
+        self.cameraType = cameraType
+        self.setup()
+        self.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
+        self.setWindowIcon(QIcon('./icons/LOA.png'))
+        self.setWindowTitle('Gain Option')
+        self.actionButton()
+
+    def setup(self):
+
+        self.grid = QGridLayout()
+        qualityLabel = QLabel('Quality')
+        self.quality = QComboBox()
+        self.quality.addItem('LowGain')
+        if self.cameraType == 'ProEM':
+            self.quality.addItem('Electron Multiplied')
+
+        speedLabel = QLabel('speed')
+        self.speed = QComboBox()
+        self.speed.addItem('1 MHz')
+        self.speed.addItem('100 kHz')
+        AnologLabel = QLabel('Analog Gain ')
+        self.analog = QComboBox()
+        self.analog.addItem('Low')
+        self.analog.addItem('Medium')
+        self.analog.addItem('High')
+        self.analog.setCurrentIndex(2)  # gain high
+        EMGainLabel = QLabel("EM GAIN")
+        self.EMGain = QDoubleSpinBox()
+        self.EMGain.setMaximum(100)
+        self.EMGain.setEnabled(False)
+
+        self.grid.addWidget( qualityLabel,0,0)
+        self.grid.addWidget(self.quality,0,1)
+        self.grid.addWidget( speedLabel,1,0)
+        self.grid.addWidget( self.speed,1,1)
+        self.grid.addWidget(AnologLabel,2,0)
+        self.grid.addWidget(self.analog,2,1)
+        self.grid.addWidget(EMGainLabel,3,0)
+        self.grid.addWidget(self.EMGain,3,1)
+        self.setLayout(self.grid)
+        
+    def actionButton(self):
+        self.quality.activated.connect(self.qualityChange)  # currentIndexChanged
+        self.analog.activated.connect(self.analogGainChange)
+        self.speed.activated.connect(self.speedChange)
+        self.EMGain.editingFinished.connect(self.EMGainChange)
+
+    def qualityChange(self):
+        ### 
+        # PicamAdcQuality_LowNoise           = 1,
+        # PicamAdcQuality_HighCapacity       = 2,
+        # PicamAdcQuality_HighSpeed          = 4,
+        # PicamAdcQuality_ElectronMultiplied = 3
+
+        if self.quality.currentIndex() == 0:
+            self.qualityValue = 'LowGain'
+            self.speed.clear()
+            self.speed.addItem('1 MHz')
+            self.speed.addItem('100 kHz')
+            self.speed.setCurrentIndex(0)
+            self.cam.setParameter("PicamParameter_AdcSpeed",float(1))
+            self.EMGain.setEnabled(False)
+            self.cam.setParameter("PicamParameter_AdcQuality",int(1))
+        else :
+            self.qualityValue = 'EM'
+            time.sleep(0.1)
+            self.speed.clear()
+            self.speed.addItem('8 MHz')
+            self.speed.addItem('4 MHz')
+            self.speed.addItem('1 MHz')
+            self.speed.setCurrentIndex(0)
+            self.EMGain.setEnabled(True)
+            self.cam.setParameter("PicamParameter_AdcQuality",int(3))
+            time.sleep(0.1)
+            self.cam.setParameter("PicamParameter_AdcSpeed",float(8))
+            self.EMGain.setValue(1)
+            time.sleep(0.1)
+            self.cam.setParameter("PicamParameter_AdcEMGain",int(1))
+        time.sleep(0.1)
+        print('quality set to:  ',self.cam.getParameter("PicamParameter_AdcQuality"))
+
+    def analogGainChange(self):
+         # Controls the electronic gain of the pixel digitization via the PicamAdcAnalogGain data enumeration.
+        # PicamAdcAnalogGain_Low    = 1,
+        #PicamAdcAnalogGain_Medium = 2,
+        #PicamAdcAnalogGain_High   = 3
+        analogGain = self.analog.currentIndex() + 1
+        self.cam.setParameter("PicamParameter_AdcAnalogGain",analogGain)
+        time.sleep(0.1)
+        print('analog gain set to : ',self.cam.getParameter("PicamParameter_AdcAnalogGain"))
+    
+    def speedChange(self):
+        #Controls the rate pixels are digitized, in MHz.
+        
+        #speed = 1
+        if self.qualityValue == 'LowGain':
+            if self.speed.currentIndex() == 0 :
+                speed = 1
+            if self.speed.currentIndex() == 1 : # khz
+                speed = 0.1
+        
+        if self.qualityValue == 'EM':
+            if self.speed.currentIndex() == 0 :
+                speed = 8
+            if self.speed.currentIndex() == 1 :
+                speed = 4   
+            if self.speed.currentIndex() == 2 :
+                speed = 1   
+
+        self.cam.setParameter("PicamParameter_AdcSpeed",float(speed))
+        time.sleep(0.1)
+        print ('speed set to : ',self.cam.getParameter("PicamParameter_AdcSpeed"))
+               
+    def EMGainChange(self):
+        # Controls the electromagnetic gain in terms of multiples
+        emGain = self.EMGain.value()
+        self.cam.setParameter("PicamParameter_AdcEMGain",int(emGain))
+        time.sleep(0.1)
+        print('EM Gain set to ',self.cam.getParameter("PicamParameter_AdcEMGain" ))
+    
+    def closeEvent(self, event):
+        """ when closing the window
+        """
+        self.isWinOpen = False
+        event.accept()
+
+class ProgressScreen(QWidget):
+    
+    def __init__(self,parent=None):
+
+        super().__init__()
+
+        self.parent = parent 
+        p = pathlib.Path(__file__)
+        sepa = os.sep
+        self.icon = str(p.parent) + sepa+'icons' + sepa
+        self.setWindowIcon(QIcon(self.icon+'LOA.png'))
+        self.setWindowTitle(' Loading  ...')
+        self.setGeometry(600, 300, 300, 100)
+        #self.setWindowFlags(Qt.WindowType.FramelessWindowHint| Qt.WindowType.WindowStaysOnTopHint)
+        layout = QVBoxLayout()
+
+        self.label = QLabel('Loading Camera V'+str(__version__))
+        self.label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.label2 = QLabel("Laboratoire d'Optique Appliquée")
+        self.label2.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.label2.setStyleSheet('font :bold 20pt;color: white')
+        self.action = QLabel('Load visu')
+        layout.addWidget(self.label2)
+        layout.addWidget(self.label)
+        layout.addWidget(self.action)
+        self.progress_bar = QProgressBar()
+        layout.addWidget(self.progress_bar)
+
+        self.setLayout(layout)
+        if self.parent is not None:
+            self.parent.updateBar_signal.connect(self.setLabel)
+
+    def setLabel(self,labels) :
+        label = labels[0]
+        val = labels[1]
+        self.action.setText(str(label))
+        self.progress_bar.setValue(int(val))
+        QtCore.QCoreApplication.processEvents() # c'est moche mais pas de mise  jour sinon ???
+
+
 if __name__ == "__main__":       
     
     appli = QApplication(sys.argv)
     confpathVisu = 'C:/Users/GAUTIER/Desktop/python/princeton/confCCD.ini'
     appli.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
-    e = ROPPER(cam='quadro',motRSAI=True,spectro=False)
+    #e = GAINWIDGET()
+    e = ROPPER(cam='ProEM',motRSAI=False,spectro=False)
     e.show()
     appli.exec_()       
