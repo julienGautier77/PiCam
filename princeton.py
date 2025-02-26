@@ -18,7 +18,7 @@ __author__=__init__.__author__
 version=__version__
 
 from PyQt6.QtWidgets import QApplication,QVBoxLayout,QHBoxLayout,QWidget,QPushButton,QToolButton,QLayout,QMenu,QDockWidget,QDoubleSpinBox,QGridLayout, QFileDialog
-from PyQt6.QtWidgets import QComboBox,QSlider,QLabel,QSpinBox,QInputDialog,QSizePolicy,QCheckBox,QProgressBar
+from PyQt6.QtWidgets import QComboBox,QSlider,QLabel,QSpinBox,QInputDialog,QSizePolicy,QCheckBox,QProgressBar,QMessageBox
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
@@ -39,13 +39,38 @@ from visu import SEE
 
 
 class ROPPER(QWidget):
+    '''Widget for camera control of teledyn (princeton camera using PVCAM)
+    Parameters
+        ----------
+        cam : TYPE str, optional
+            DESCRIPTION. 
+                cam='MTE' :
+                cam='Quadro'
+                cam='ProEM'
+        **kwds:
+            motRSAI : TYPE boolean, optional
+                DESCRIPTION.
+                    motRSAI= True you can use postion motor from RSAI controler
+                The default is False
+            spectro: : TYPE boolean, optional
+                DESCRIPTION.
+                    spectro= option in vusi to calculate electons trajectory and plot the spectra in eV
+                The default is False
+            affLight : TYPE boolean, optional
+                DESCRIPTION.
+                    affLight = False all the option are show for the visualisation
+                    affLight = True only few option (save  open cross)
+                    The default is False
+
+            Other  kwds see VISU class
+    '''
 
     signalData = QtCore.pyqtSignal(object)  # signal emited when receive image*
     updateBar_signal = QtCore.pyqtSignal(object)  # signal for update progressbar
 
     def __init__(self,cam=None,confFile='confCCD.ini',**kwds):
-        
         super(ROPPER, self).__init__()
+
         self.progressWin = ProgressScreen(parent = self)
         self.progressWin.setWindowFlags(Qt.WindowType.SplashScreen | Qt.WindowType.WindowStaysOnTopHint)
         self.progressWin.show()
@@ -67,12 +92,10 @@ class ROPPER(QWidget):
         else  :
             self.confpath = None
         
-        
         if self.confpath is None:
             self.confpath = str(p.parent / confFile) # ini file with global path
         
         self.conf = QtCore.QSettings(self.confpath, QtCore.QSettings.Format.IniFormat) # ini file 
-        
         
         self.kwds["confpath"] = self.confpath
 
@@ -133,7 +156,16 @@ class ROPPER(QWidget):
             self.isConnected = True
         except:
             self.isConnected = False
-         
+        serial = self.cam.getSerialNumber() 
+        if serial== "SLTest:Demo" :
+            msg= QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle('Attention')
+            msg.setText("Warning : A demo camera has been connected")
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg.setWindowIcon(QIcon(self.icon+'LOA.png'))
+            tetval=msg.exec()
+
     def update_temp(self, temp=None,stat=None):
        # print(temp,stat)
         if temp == None:
@@ -300,7 +332,6 @@ class ROPPER(QWidget):
                 self.visualisation.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.dockTrig)
                 self.visualisation.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.dockShutter)  
         else:
-        #self.dockControl.setFeatures(QDockWidget.DockWidgetMovable)
             self.visualisation.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea,self.dockControl)
             self.visualisation.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea,self.dockTrig)
             self.visualisation.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea,self.dockShutter)
@@ -314,7 +345,6 @@ class ROPPER(QWidget):
         self.settingButton.setMinimumHeight(self.sizebuttonMax)
         self.settingButton.setText('Cam Set.')
         hbox1.addWidget(self.settingButton)
-        
 
         self.cleaningButton = QToolButton(self)
         self.cleaningButton.setMaximumWidth(self.sizebuttonMax+30)
@@ -362,7 +392,7 @@ class ROPPER(QWidget):
             
             self.cam.setParameter("PicamParameter_CleanCycleCount", int(1))
             self.cam.setParameter("PicamParameter_CleanCycleHeight", int(1))
-            self.cam.setParameter("PicamParameter_TriggerDetermination", int(1))
+            self.cam.setParameter("PicamParameter_TriggerDetermination", int(1)) # no trigger
             self.cam.setParameter("PicamParameter_CleanUntilTrigger",int(0))
 
             if self.cameraType == 'MTE':
@@ -374,7 +404,6 @@ class ROPPER(QWidget):
                 self.h = self.cam.getParameter("PicamParameter_SensorActiveHeight")
 
             if self.cameraType == 'ProEM':
-                #print(self.cameraType)
                 self.cam.setParameter("PicamParameter_AdcQuality",int(1))
                 time.sleep(0.1)
                 self.cam.setParameter("PicamParameter_AdcSpeed",float(1)) # 1 MHz
@@ -383,7 +412,6 @@ class ROPPER(QWidget):
                 time.sleep(0.1)
                 self.cam.SetTemperature(-60)
                 time.sleep(0.1)
-                
             elif self.cameraType == 'Quadro':
                 self.cam.SetTemperature(-15)
             else : 
@@ -394,8 +422,6 @@ class ROPPER(QWidget):
             
             self.dimx = self.w
             self.dimy = self.h
-            #print('adc',self.cam.getParameter("PicamParameter_AdcSpeed"))
-            #print('ShutterTimingMode',self.cam.getParameter("PicamParameter_ShutterTimingMode"))
             
             self.serial = self.cam.getSerialNumber()
             self.tempWidget = TEMPWIDGET(cam=self.cam)
@@ -416,11 +442,12 @@ class ROPPER(QWidget):
         self.conf.setValue(self.nbcam+"/shutter",float(self.sh))
         self.conf.sync()
     
-    def mSliderShutter(self): # for shutter slider 
+    def mSliderShutter(self):
+        '''for shutter slider 
+        '''
         self.sh = self.hSliderShutter.value()
         self.shutterBox.setValue(int(self.sh))
         self.cam.SetExposure(int(self.sh))
-       
         time.sleep(0.1)
         self.conf.setValue(self.nbcam+"/shutter",float(self.sh))
     
@@ -438,7 +465,6 @@ class ROPPER(QWidget):
         self.cleaningButton.clicked.connect(lambda:self.open_widget(self.cleaningWidget) )
         self.DigitalButton.clicked.connect(lambda:self.open_widget(self.gainWidget) )
         
-    
     def acquireOneImage(self):
         '''Start on acquisition
         '''
@@ -453,9 +479,10 @@ class ROPPER(QWidget):
         self.trigg.setEnabled(False)
         self.hSliderShutter.setEnabled(False)
         self.shutterBox.setEnabled(False)
-        self.threadOneAcq.newRun() # to set stopRunAcq=False
+        self.threadOneAcq.newRun() # to set stopRunAcq = False
         self.threadOneAcq.start()
         self.camIsRunnig = True
+        ## set all button of control widget disabled
         for child in self.settingWidget.findChildren(QPushButton):
             child.setEnabled(False)
         for child in self.settingWidget.findChildren(QComboBox):
@@ -478,6 +505,7 @@ class ROPPER(QWidget):
         self.trigg.setEnabled(False)
         self.hSliderShutter.setEnabled(False)
         self.shutterBox.setEnabled(False)
+        ## set all button of control widget disabled
         for child in self.settingWidget.findChildren(QPushButton):
             child.setEnabled(False)
         for child in self.settingWidget.findChildren(QComboBox):
@@ -515,6 +543,7 @@ class ROPPER(QWidget):
         self.trigg.setEnabled(True)
         self.hSliderShutter.setEnabled(True)
         self.shutterBox.setEnabled(True)
+        ## set all button of control widget enabled
         for child in self.settingWidget.findChildren(QPushButton):
             child.setEnabled(True)
         for child in self.settingWidget.findChildren(QComboBox):
@@ -527,28 +556,27 @@ class ROPPER(QWidget):
         self.camIsRunnig = False
 
     def Trigger(self):
-    ## trig la CCD    
+        ''' trig la CCD    
+        '''
+        #  PicamTriggerDetermination_PositivePolarity       = 1,
+        # PicamTriggerDetermination_NegativePolarity       = 2,
+        # PicamTriggerDetermination_RisingEdge             = 3,
+        # PicamTriggerDetermination_FallingEdge            = 4,
+        # PicamTriggerDetermination_AlternatingEdgeRising  = 5,
+        # PicamTriggerDetermination_AlternatingEdgeFalling = 6
     
-   #  PicamTriggerDetermination_PositivePolarity       = 1,
-   # PicamTriggerDetermination_NegativePolarity       = 2,
-   # PicamTriggerDetermination_RisingEdge             = 3,
-   # PicamTriggerDetermination_FallingEdge            = 4,
-   # PicamTriggerDetermination_AlternatingEdgeRising  = 5,
-   # PicamTriggerDetermination_AlternatingEdgeFalling = 6
-   
-    # PicamTriggerResponse_NoResponse               = 1,
-    # PicamTriggerResponse_StartOnSingleTrigger     = 5,
-    # PicamTriggerResponse_ReadoutPerTrigger        = 2,
-    # PicamTriggerResponse_ShiftPerTrigger          = 3,
-    # PicamTriggerResponse_GatePerTrigger           = 6,
-    # PicamTriggerResponse_ExposeDuringTriggerPulse = 4
-   
-    # PicamTriggerSource_None     = 3, Pas DISPO pour PIXIS Et MTE
-   #  PicamTriggerSource_Internal = 2,
-   #  PicamTriggerSource_External = 1
-   
-   # PicamTriggerTermination_FiftyOhms     = 1,
-   #  PicamTriggerTermination_HighImpedance = 2
+        # PicamTriggerResponse_NoResponse               = 1,
+        # PicamTriggerResponse_StartOnSingleTrigger     = 5,
+        # PicamTriggerResponse_ReadoutPerTrigger        = 2,
+        # PicamTriggerResponse_ShiftPerTrigger          = 3,
+        # PicamTriggerResponse_GatePerTrigger           = 6,
+        # PicamTriggerResponse_ExposeDuringTriggerPulse = 4
+        # PicamTriggerSource_None     = 3, Pas DISPO pour PIXIS Et MTE
+        #  PicamTriggerSource_Internal = 2,
+        #  PicamTriggerSource_External = 1
+        
+        # PicamTriggerTermination_FiftyOhms     = 1,
+        #  PicamTriggerTermination_HighImpedance = 2
 
         itrig = self.trigg.currentIndex()
         if itrig == 0:
@@ -578,7 +606,6 @@ class ROPPER(QWidget):
                self.nbShot = 1
 
     def open_widget(self,fene):
-        
         """ open new widget 
         """
         if fene.isWinOpen is False:
@@ -593,15 +620,12 @@ class ROPPER(QWidget):
     def closeEvent(self,event):
         ''' closing window event (cross button)
         '''
-        #print(' close')
         try :
             self.threadTemp.stopThreadTemp()
         except:
             print('no camera connected')
-        #self.threadTemp.stopThreadTemp()
         time.sleep(0.1)
         self.cam.disconnect()
-        
         time.sleep(0.2)      
         if self.isConnected is True:
             if self.settingWidget.isWinOpen is True:
@@ -609,9 +633,10 @@ class ROPPER(QWidget):
             if self.cleaningWidget.isWinOpen is True:
                 self.cleaningWidget.close()
             if self.tempWidget.isWinOpen is True:
-                self.self.tempWidget.close()
+                self.tempWidget.close()
             if self.gainWidget.isWinOpen is True:
-                self.self.tempWidget.close()
+                self.tempWidget.close()
+
 
 class ThreadRunAcq(QtCore.QThread):
     
@@ -691,7 +716,7 @@ class ThreadOneAcq(QtCore.QThread):
 
 class ThreadTemperature(QtCore.QThread):
     """
-    Thread pour la lecture de la temperature toute les 2 secondes
+    Thread pour la lecture et etat de la temperature toute les 1 secondes
     """
     TEMP = QtCore.pyqtSignal(float,int) # signal pour afichage temperature
 
@@ -703,6 +728,7 @@ class ThreadTemperature(QtCore.QThread):
         self.parent = parent
 
     def run(self):
+
         while True:# self.cam.cam is not None  and self.parent.camIsRunnig == False:  # and self.cam.IsAcquisitionRunning()==False:
             try :
                 temp = self.cam.GetTemperature()
@@ -723,7 +749,8 @@ class ThreadTemperature(QtCore.QThread):
         self.stopTemp = False
 
 class TEMPWIDGET(QWidget):
-    '''widget setting temp'''
+    '''widget setting temp
+    '''
 
     def __init__(self, cam=None,parent=None):
         super().__init__()
@@ -767,7 +794,8 @@ class TEMPWIDGET(QWidget):
         
         
 class SETTINGWIDGET(QWidget):
-    ''' widget setting ROI  and shutter mode'''
+    ''' widget setting ROI  and shutter mode
+    '''
     def __init__(self, cam = None, visualisation=None, parent=None, conf=None ,nbcam= None,cameraType=''):
         
         super(SETTINGWIDGET, self).__init__(parent)
@@ -975,7 +1003,8 @@ class SETTINGWIDGET(QWidget):
         event.accept() 
 
 class CLEANINGWiDGET(QWidget):
-    '''widget for setting cleaning'''
+    '''widget for setting cleaning
+    '''
 
     def __init__(self, cam = None, parent=None):
         
@@ -1030,11 +1059,12 @@ class CLEANINGWiDGET(QWidget):
         event.accept()
         
 class GAINWIDGET(QWidget):
-    '''Widget to control gain anolog and digital'''
+    '''Widget to control gain anolog and digital
+    '''
 
     def __init__(self, cam = None, cameraType=None,parent=None):
-        
         super(GAINWIDGET, self).__init__(parent)
+
         self.cam = cam
         self.isWinOpen = False
         self.parent = parent
@@ -1052,6 +1082,7 @@ class GAINWIDGET(QWidget):
         qualityLabel = QLabel('Quality')
         self.quality = QComboBox()
         self.quality.addItem('LowGain')
+
         if self.cameraType == 'ProEM':
             self.quality.addItem('Electron Multiplied')
 
@@ -1087,7 +1118,8 @@ class GAINWIDGET(QWidget):
         self.EMGain.editingFinished.connect(self.EMGainChange)
 
     def qualityChange(self):
-        ### 
+        '''Change quality of the gain
+        ''' 
         # PicamAdcQuality_LowNoise           = 1,
         # PicamAdcQuality_HighCapacity       = 2,
         # PicamAdcQuality_HighSpeed          = 4,
@@ -1118,21 +1150,23 @@ class GAINWIDGET(QWidget):
             time.sleep(0.1)
             self.cam.setParameter("PicamParameter_AdcEMGain",int(1))
         time.sleep(0.1)
-        print('quality set to:  ',self.cam.getParameter("PicamParameter_AdcQuality"))
+        #print('quality set to:  ',self.cam.getParameter("PicamParameter_AdcQuality"))
 
     def analogGainChange(self):
-         # Controls the electronic gain of the pixel digitization via the PicamAdcAnalogGain data enumeration.
+        '''Controls the electronic gain of the pixel digitization 
+            via the PicamAdcAnalogGain data enumeration.
+        '''
         # PicamAdcAnalogGain_Low    = 1,
         #PicamAdcAnalogGain_Medium = 2,
         #PicamAdcAnalogGain_High   = 3
         analogGain = self.analog.currentIndex() + 1
         self.cam.setParameter("PicamParameter_AdcAnalogGain",analogGain)
         time.sleep(0.1)
-        print('analog gain set to : ',self.cam.getParameter("PicamParameter_AdcAnalogGain"))
+        #print('analog gain set to : ',self.cam.getParameter("PicamParameter_AdcAnalogGain"))
     
     def speedChange(self):
-        #Controls the rate pixels are digitized, in MHz.
-        
+        '''Controls the rate pixels are digitized, in MHz.
+        '''
         #speed = 1
         if self.qualityValue == 'LowGain':
             if self.speed.currentIndex() == 0 :
@@ -1178,7 +1212,8 @@ class ProgressScreen(QWidget):
         self.setWindowIcon(QIcon(self.icon+'LOA.png'))
         self.setWindowTitle(' Loading  ...')
         self.setGeometry(600, 300, 300, 100)
-        #self.setWindowFlags(Qt.WindowType.FramelessWindowHint| Qt.WindowType.WindowStaysOnTopHint)
+    
+
         layout = QVBoxLayout()
 
         self.label = QLabel('Loading Camera V'+str(__version__))
@@ -1204,13 +1239,10 @@ class ProgressScreen(QWidget):
         self.progress_bar.setValue(int(val))
         QtCore.QCoreApplication.processEvents() # c'est moche mais pas de mise  jour sinon ???
 
-
 if __name__ == "__main__":       
     
     appli = QApplication(sys.argv)
-    confpathVisu = 'C:/Users/GAUTIER/Desktop/python/princeton/confCCD.ini'
     appli.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
-    #e = GAINWIDGET()
     e = ROPPER(cam='ProEM',motRSAI=False,spectro=False)
     e.show()
     appli.exec_()       
